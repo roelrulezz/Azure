@@ -1,0 +1,325 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "Development-VNETName": {
+      "type": "string",
+      "defaultValue": "Development-VNET",
+      "metadata": {
+        "description": "Virtual Network name"
+      }
+    },
+    "OpenVPN-NICName": {
+      "type": "string",
+      "defaultValue": "OpenVPN01-NIC",
+      "metadata": {
+        "description": "OpenVPN Network Interface Card name"
+      }
+    },
+    "OpenVPN-PIPName": {
+      "type": "string",
+      "defaultValue": "OpenVPN01-PIP",
+      "metadata": {
+        "description": "OpenVPN Public IP name"
+      }
+    },
+    "OpenVPN-NSGName": {
+      "type": "string",
+      "defaultValue": "OpenVPN01-NSG",
+      "metadata": {
+        "description": "OpenVPN Network Security Group name"
+      }
+    },
+    "OpenVPN-SAType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "StandardSSD_LRS",
+        "Standard_GRS",
+        "Standard_ZRS",
+        "Premium_LRS"
+      ],
+      "metadata": {
+        "description": "Storage Account type"
+      }
+    },
+    "OpenVPN-VMName": {
+      "type": "string",
+      "defaultValue": "OpenVPN01-VM",
+      "metadata": {
+        "description": "OpenVPN Virtual Machine name"
+      }
+    },
+    "OpenVPN-VMUbuntuOSVersion": {
+      "type": "string",
+      "defaultValue": "18.04-LTS",
+      "allowedValues": [
+        "16.04.0-LTS",
+        "18.04-LTS"
+      ],
+      "metadata": {
+        "description": "The Ubuntu version for the OpenVPN Virtual Machine. This will pick a fully patched image of this given Ubuntu version. Allowed values: 16.04.0-LTS, 18.04-LTS."
+      }
+    },
+    "OpenVPN-VMAdminUsername": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Administrator username for OpenVPN Virtual Machine"
+      }
+    },
+    "OpenVPN-VMAuthenticationType": {
+      "type": "string",
+      "defaultValue": "sshPublicKey",
+      "allowedValues": [
+        "sshPublicKey",
+        "password"
+      ],
+      "metadata": {
+        "description": "Type of authentication to use on the OpenVPN Virtual Machine. SSH key is recommended."
+      }
+    },
+    "OpenVPN-VMAdminPasswordOrKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "SSH Key or password for the Virtual Machine. SSH key is recommended."
+      }
+    }
+  },
+  "variables": {
+    "Development-VNETPrefix": "10.1.0.0/16",
+    "OpenVPN-SubnetName": "OpenVPN-SUBNET",
+    "OpenVPN-SubnetPrefix": "10.1.0.0/24",
+    "OpenVPN-NICVnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'Development-VNET')]",
+    "OpenVPN-NICSubnetRef": "[concat(variables('OpenVPN-NICVnetID'), '/subnets/', variables('OpenVPN-SubnetName'))]",
+    "OpenVPN-NICAllocationMethod": "Static",
+    "OpenVPN-NICPrivateIPAddress": "10.1.0.4",
+    "OpenVPN-PIPAllocationMethod": "Static",
+    "OpenVPN-SAName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]",
+    "OpenVPN-VMImagePublisher": "Canonical",
+    "OpenVPN-VMImageOffer": "UbuntuServer",
+    "OpenVPN-VMOSDiskName": "[concat(parameters('OpenVPN-VMName'), 'OSDisk')]",
+    "OpenVPN-VMVmSize": "Standard_B1s",
+    "OpenVPN-VMSAContainerName": "vhds",
+    "OpenVPN-VMLinuxConfiguration": {
+      "disablePasswordAuthentication": true,
+      "ssh": {
+        "publicKeys": [
+          {
+            "path": "[concat('/home/', parameters('OpenVPN-VMAdminUsername'), '/.ssh/authorized_keys')]",
+            "keyData": "[parameters('OpenVPN-VMAdminPasswordOrKey')]"
+          }
+        ]
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('Development-VNETName')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "Development-VNET"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('Development-VNETPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('OpenVpn-SubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('OpenVpn-SubnetPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('OpenVPN-NICName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('Development-VNETName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', parameters('OpenVPN-PIPName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('OpenVPN-NSGName'))]"
+      ],
+      "tags": {
+        "displayName": "OpenVPN-NIC"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "[variables('OpenVPN-NICAllocationMethod')]",
+              "privateIPAddress": "[variables('OpenVPN-NICPrivateIPAddress')]",
+              "subnet": {
+                "id": "[variables('OpenVPN-NICSubnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('OpenVPN-PIPName'))]"
+              }
+            }
+          }
+        ],
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('OpenVPN-NSGName'))]"
+        }
+      }
+    },
+    {
+      "name": "[parameters('OpenVPN-PIPName')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "OpenVPN-PublicIP"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+        //"dnsSettings": {
+        //  "domainNameLabel": "[parameters('OpenVPN01-PublicIPDnsName')]"
+        //}
+      }
+    },
+    {
+      "name": "[parameters('OpenVPN-NSGName')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "OpenVPN-NSG"
+      },
+      "properties": {
+        "securityRules": [
+          //{
+          //  "name": "OpenVPN_WebServer",
+          //  "properties": {
+          //    "priority": 1200,
+          //    "sourceAddressPrefix": "*",
+          //    "protocol": "Tcp",
+          //    "destinationPortRange": "943",
+          //    "access": "Allow",
+          //    "direction": "Inbound",
+          //    "sourcePortRange": "*",
+          //    "destinationAddressPrefix": "*"
+          //  }
+          //},
+          {
+            "name": "OpenVPN443",
+            "properties": {
+              "priority": 1100,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "443",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "OpenVPN1194",
+            "properties": {
+              "priority": 1300,
+              "sourceAddressPrefix": "*",
+              "protocol": "Udp",
+              "destinationPortRange": "1194",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "SSH",
+            "properties": {
+              "priority": 1000,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "22",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('OpenVPN-SAName')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2019-04-01",
+      "sku": {
+        "name": "[parameters('OpenVPN-SAType')]"
+      },
+      "dependsOn": [],
+      "tags": {
+        "displayName": "OpenVPN-SA"
+      },
+      "kind": "StorageV2"
+    },
+    {
+      "name": "[parameters('OpenVPN-VMName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2019-03-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('OpenVPN-SAName'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', parameters('OpenVPN-NICName'))]"
+      ],
+      "tags": {
+        "displayName": "OpenVPN-VM"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('OpenVPN-VMVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('OpenVPN-VMName')]",
+          "adminUsername": "[parameters('OpenVPN-VMAdminUsername')]",
+          "adminPassword": "[parameters('OpenVPN-VMAdminPasswordOrKey')]",
+          "linuxConfiguration": "[if(equals(parameters('OpenVPN-VMAuthenticationType'), 'password'), json('null'), variables('OpenVPN-VMLinuxConfiguration'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('OpenVPN-VMImagePublisher')]",
+            "offer": "[variables('OpenVPN-VMImageOffer')]",
+            "sku": "[parameters('OpenVPN-VMUbuntuOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "[parameters('OpenVPN-SAType')]"
+            },
+            "name": "[variables('OpenVPN-VMOSDiskName')]",
+            //"vhd": {
+            //  "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('OpenVPN-SAName')), '2016-01-01').primaryEndpoints.blob, variables('OpenVPN-VMSAContainerName'), '/', variables('OpenVPN-VMOSDiskName'), '.vhd')]"
+            //},
+            "caching": "ReadWrite"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('OpenVPN-NICName'))]"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}
