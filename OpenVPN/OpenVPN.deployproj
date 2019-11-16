@@ -24,14 +24,14 @@
   <!-- vertag<:>end -->
   <ItemGroup>
     <Content Include="Templates\OpenVPNDeploy.json" />
-    <Content Include="Templates\OpenVPNDeploy.example.parameters.json" />
     <None Include="Deployment.targets">
       <Visible>False</Visible>
     </None>
     <Content Include="Scripts\Deploy-AzureResourceGroup.ps1" />
     <None Include="Scripts\openvpn-install.sh" />
     <None Include="Scripts\hello-world.sh" />
-    <None Include="Templates\OpenVPNDeploy.parameters.json" />
+    <None Include="Templates\OpenVPNDeploy.parameters.example.json" />
+    <Content Include="Templates\OpenVPNDeploy.parameters.json" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>

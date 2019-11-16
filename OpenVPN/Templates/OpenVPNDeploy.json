@@ -339,13 +339,13 @@
         "settings": {
           "skipDos2Unix": false,
           "fileUris": [
-            "https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/openvpn-install.sh"
+            //"https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/openvpn-install.sh"
+            "https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/hello-world.sh"
           ]
         },
         "protectedSettings": {
           //"storageAccountName": "[variables('OpenVPN-SAName')]",
           //"storageAccountKey": ,
-          "skipDos2Unix": false,
           "commandToExecute": "[concat('bash hello-world.sh')]"
           //"commandToExecute": "[concat('bash openvpn-install.sh ', parameters('openvpnPassword'))]"
         }

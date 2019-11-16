@@ -6,8 +6,8 @@ Param(
     [switch] $UploadArtifacts,
     [string] $StorageAccountName,
     [string] $StorageContainerName = $ResourceGroupName.ToLowerInvariant() + '-stageartifacts',
-    [string] $TemplateFile = 'OpenVPNDeploy.json',
-    [string] $TemplateParametersFile = 'OpenVPNDeploy.parameters.json',
+    [string] $TemplateFile = '..\Templates\OpenVPNDeploy.json',
+    [string] $TemplateParametersFile = '..\Templates\OpenVPNDeploy.parameters.json',
     [string] $ArtifactStagingDirectory = '.',
     [string] $DSCSourceFolder = 'DSC',
     [switch] $ValidateOnly
