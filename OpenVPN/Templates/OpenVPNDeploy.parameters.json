@@ -3,9 +3,9 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "OpenVPN-VMAdminUsername": {
-      "value": ""
+      "value": "roelandvandenbosch"
     },
     "OpenVPN-VMAdminPasswordOrKey": {
-      "value": ""
+      "value": "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQB85KYep9M+zDMPYfLX5Y2z/OmNku+8tvQ7HdQcFu5A7ytciS1FRcjlpDJWnq5odwqzwtATph78NXzwQt3TNGWrnM1Txc3e8nPcJl2HW3HQ1yJKaX5dS/FuhCrh8Ddbrmaa0WFh07i8EDVU+WqIgpUyLeC9DS2/T4MrII4FMABfF330DflkPUuhfGbUPHGxnENJnz8kxnMldLbulCGgOiCxMrPyDvlCN3yJgZDof6FWwgwycTR7moPDOH2y1r8EFuaexrCk9Y23AFsmIVnfAAlgga1/KNXKTXrrxI1CvyQ5fyCnGBDy3r+g2k7CeFB768jTiIEaJXM90ac3niVVUjIz LAPTOP-RVDBNP"
     }}
 }

@@ -338,4 +338,4 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
-/OpenVPN/Templates/OpenVPNDeploy.local.parameters.json
+/OpenVPN/Templates/OpenVPNDeploy.parameters.json
