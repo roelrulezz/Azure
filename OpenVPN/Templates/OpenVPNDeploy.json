@@ -319,6 +319,37 @@
           ]
         }
       }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('OpenVPN-VMName'),'/newuserscript')]",
+      "apiVersion": "2019-03-01",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', parameters('OpenVPN-VMName'))]"
+      ],
+      "tags": {
+        "displayName": "Install-OpenVPN"
+      },
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "skipDos2Unix": false,
+          "fileUris": [
+            "https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/openvpn-install.sh"
+          ]
+        },
+        "protectedSettings": {
+          //"storageAccountName": "[variables('OpenVPN-SAName')]",
+          //"storageAccountKey": ,
+          "skipDos2Unix": false,
+          "commandToExecute": "[concat('bash hello-world.sh')]"
+          //"commandToExecute": "[concat('bash openvpn-install.sh ', parameters('openvpnPassword'))]"
+        }
+      }
     }
   ],
   "outputs": {}
