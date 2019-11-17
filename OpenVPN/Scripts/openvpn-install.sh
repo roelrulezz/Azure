@@ -4,27 +4,44 @@
 #
 # Copyright (c) 2013 Nyr. Released under the MIT License.
 
+#################################################################
+while [ "$1" != "" ]; do
+    case $1 in
+        -ip )					shift
+                                ip=$1
+                                ;;
+        -i | --interactive )    interactive=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+#################################################################
 
-if grep -qs "14.04" /etc/os-release; then
-	echo "Ubuntu 14.04 is too old and not supported"
-	exit
-fi
+#if grep -qs "14.04" /etc/os-release; then
+#	echo "Ubuntu 14.04 is too old and not supported"
+#	exit
+#fi
 
-if grep -qs "jessie" /etc/os-release; then
-	echo "Debian 8 is too old and not supported"
-	exit
-fi
+#if grep -qs "jessie" /etc/os-release; then
+#	echo "Debian 8 is too old and not supported"
+#	exit
+#fi
 
-if grep -qs "CentOS release 6" /etc/redhat-release; then
-	echo "CentOS 6 is too old and not supported"
-	exit
-fi
+#if grep -qs "CentOS release 6" /etc/redhat-release; then
+#	echo "CentOS 6 is too old and not supported"
+#	exit
+#fi
 
-if grep -qs "Ubuntu 16.04" /etc/os-release; then
-	echo 'Ubuntu 16.04 is no longer supported in the current version of openvpn-install
-Use an older version if Ubuntu 16.04 support is needed: https://git.io/vpn1604'
-	exit
-fi
+#if grep -qs "Ubuntu 16.04" /etc/os-release; then
+#	echo 'Ubuntu 16.04 is no longer supported in the current version of openvpn-install
+#Use an older version if Ubuntu 16.04 support is needed: https://git.io/vpn1604'
+#	exit
+#fi
 
 # Detect Debian users running the script with "sh" instead of bash
 if readlink /proc/$$/exe | grep -q "dash"; then
@@ -80,152 +97,152 @@ new_client () {
 	} > ~/"$1".ovpn
 }
 
-if [[ -e /etc/openvpn/server/server.conf ]]; then
-	while :
-	do
-	clear
-		echo "Looks like OpenVPN is already installed."
-		echo
-		echo "What do you want to do?"
-		echo "   1) Add a new user"
-		echo "   2) Revoke an existing user"
-		echo "   3) Remove OpenVPN"
-		echo "   4) Exit"
-		read -p "Select an option: " option
-		until [[ "$option" =~ ^[1-4]$ ]]; do
-			echo "$option: invalid selection."
-			read -p "Select an option: " option
-		done
-		case "$option" in
-			1) 
-			echo
-			echo "Tell me a name for the client certificate."
-			read -p "Client name: " unsanitized_client
-			client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
-			while [[ -z "$client" || -e /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt ]]; do
-				echo "$client: invalid client name."
-				read -p "Client name: " unsanitized_client
-				client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
-			done
-			cd /etc/openvpn/server/easy-rsa/
-			EASYRSA_CERT_EXPIRE=3650 ./easyrsa build-client-full "$client" nopass
-			# Generates the custom client.ovpn
-			new_client "$client"
-			echo
-			echo "Client $client added, configuration is available at:" ~/"$client.ovpn"
-			exit
-			;;
-			2)
-			# This option could be documented a bit better and maybe even be simplified
-			# ...but what can I say, I want some sleep too
-			number_of_clients=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V")
-			if [[ "$number_of_clients" = 0 ]]; then
-				echo
-				echo "You have no existing clients!"
-				exit
-			fi
-			echo
-			echo "Select the existing client certificate you want to revoke:"
-			tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-			read -p "Select one client: " client_number
-			until [[ "$client_number" =~ ^[0-9]+$ && "$client_number" -le "$number_of_clients" ]]; do
-				echo "$client_number: invalid selection."
-				read -p "Select one client: " client_number
-			done
-			client=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$client_number"p)
-			echo
-			read -p "Do you really want to revoke access for client $client? [y/N]: " revoke
-			until [[ "$revoke" =~ ^[yYnN]*$ ]]; do
-				echo "$revoke: invalid selection."
-				read -p "Do you really want to revoke access for client $client? [y/N]: " revoke
-			done
-			if [[ "$revoke" =~ ^[yY]$ ]]; then
-				cd /etc/openvpn/server/easy-rsa/
-				./easyrsa --batch revoke "$client"
-				EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-				rm -f pki/reqs/"$client".req
-				rm -f pki/private/"$client".key
-				rm -f pki/issued/"$client".crt
-				rm -f /etc/openvpn/server/crl.pem
-				cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
-				# CRL is read with each client connection, when OpenVPN is dropped to nobody
-				chown nobody:"$group_name" /etc/openvpn/server/crl.pem
-				echo
-				echo "Certificate for client $client revoked!"
-			else
-				echo
-				echo "Certificate revocation for client $client aborted!"
-			fi
-			exit
-			;;
-			3) 
-			echo
-			read -p "Do you really want to remove OpenVPN? [y/N]: " remove
-			until [[ "$remove" =~ ^[yYnN]*$ ]]; do
-				echo "$remove: invalid selection."
-				read -p "Do you really want to remove OpenVPN? [y/N]: " remove
-			done
-			if [[ "$remove" =~ ^[yY]$ ]]; then
-				port=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
-				protocol=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
-				if pgrep firewalld; then
-					ip=$(firewall-cmd --direct --get-rules ipv4 nat POSTROUTING | grep '\-s 10.8.0.0/24 '"'"'!'"'"' -d 10.8.0.0/24 -j SNAT --to ' | cut -d " " -f 10)
-					# Using both permanent and not permanent rules to avoid a firewalld reload.
-					firewall-cmd --remove-port="$port"/"$protocol"
-					firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
-					firewall-cmd --permanent --remove-port="$port"/"$protocol"
-					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
-					firewall-cmd --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$ip"
-					firewall-cmd --permanent --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$ip"
-				else
-					systemctl disable --now openvpn-iptables.service
-					rm -f /etc/systemd/system/openvpn-iptables.service
-				fi
-				if sestatus 2>/dev/null | grep "Current mode" | grep -q "enforcing" && [[ "$port" != 1194 ]]; then
-					semanage port -d -t openvpn_port_t -p "$protocol" "$port"
-				fi
-				systemctl disable --now openvpn-server@server.service
-				rm -rf /etc/openvpn/server
-				rm -f /etc/systemd/system/openvpn-server@server.service.d/disable-limitnproc.conf
-				rm -f /etc/sysctl.d/30-openvpn-forward.conf
-				if [[ "$os" = "debian" ]]; then
-					apt-get remove --purge -y openvpn
-				else
-					yum remove openvpn -y
-				fi
-				echo
-				echo "OpenVPN removed!"
-			else
-				echo
-				echo "Removal aborted!"
-			fi
-			exit
-			;;
-			4) exit;;
-		esac
-	done
-else
+#if [[ -e /etc/openvpn/server/server.conf ]]; then
+#	while :
+#	do
+#	clear
+#		echo "Looks like OpenVPN is already installed."
+#		echo
+#		echo "What do you want to do?"
+#		echo "   1) Add a new user"
+#		echo "   2) Revoke an existing user"
+#		echo "   3) Remove OpenVPN"
+#		echo "   4) Exit"
+#		read -p "Select an option: " option
+#		until [[ "$option" =~ ^[1-4]$ ]]; do
+#			echo "$option: invalid selection."
+#			read -p "Select an option: " option
+#		done
+#		case "$option" in
+#			1) 
+#			echo
+#			echo "Tell me a name for the client certificate."
+#			read -p "Client name: " unsanitized_client
+#			client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
+#			while [[ -z "$client" || -e /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt ]]; do
+#				echo "$client: invalid client name."
+#				read -p "Client name: " unsanitized_client
+#				client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
+#			done
+#			cd /etc/openvpn/server/easy-rsa/
+#			EASYRSA_CERT_EXPIRE=3650 ./easyrsa build-client-full "$client" nopass
+#			# Generates the custom client.ovpn
+#			new_client "$client"
+#			echo
+#			echo "Client $client added, configuration is available at:" ~/"$client.ovpn"
+#			exit
+#			;;
+#			2)
+#			# This option could be documented a bit better and maybe even be simplified
+#			# ...but what can I say, I want some sleep too
+#			number_of_clients=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V")
+#			if [[ "$number_of_clients" = 0 ]]; then
+#				echo
+#				echo "You have no existing clients!"
+#				exit
+#			fi
+#			echo
+#			echo "Select the existing client certificate you want to revoke:"
+#			tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+#			read -p "Select one client: " client_number
+#			until [[ "$client_number" =~ ^[0-9]+$ && "$client_number" -le "$number_of_clients" ]]; do
+#				echo "$client_number: invalid selection."
+#				read -p "Select one client: " client_number
+#			done
+#			client=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$client_number"p)
+#			echo
+#			read -p "Do you really want to revoke access for client $client? [y/N]: " revoke
+#			until [[ "$revoke" =~ ^[yYnN]*$ ]]; do
+#				echo "$revoke: invalid selection."
+#				read -p "Do you really want to revoke access for client $client? [y/N]: " revoke
+#			done
+#			if [[ "$revoke" =~ ^[yY]$ ]]; then
+#				cd /etc/openvpn/server/easy-rsa/
+#				./easyrsa --batch revoke "$client"
+#				EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+#				rm -f pki/reqs/"$client".req
+#				rm -f pki/private/"$client".key
+#				rm -f pki/issued/"$client".crt
+#				rm -f /etc/openvpn/server/crl.pem
+#				cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
+#				# CRL is read with each client connection, when OpenVPN is dropped to nobody
+#				chown nobody:"$group_name" /etc/openvpn/server/crl.pem
+#				echo
+#				echo "Certificate for client $client revoked!"
+#			else
+#				echo
+#				echo "Certificate revocation for client $client aborted!"
+#			fi
+#			exit
+#			;;
+#			3) 
+#			echo
+#			read -p "Do you really want to remove OpenVPN? [y/N]: " remove
+#			until [[ "$remove" =~ ^[yYnN]*$ ]]; do
+#				echo "$remove: invalid selection."
+#				read -p "Do you really want to remove OpenVPN? [y/N]: " remove
+#			done
+#			if [[ "$remove" =~ ^[yY]$ ]]; then
+#				port=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+#				protocol=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+#				if pgrep firewalld; then
+#					ip=$(firewall-cmd --direct --get-rules ipv4 nat POSTROUTING | grep '\-s 10.8.0.0/24 '"'"'!'"'"' -d 10.8.0.0/24 -j SNAT --to ' | cut -d " " -f 10)
+#					# Using both permanent and not permanent rules to avoid a firewalld reload.
+#					firewall-cmd --remove-port="$port"/"$protocol"
+#					firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
+#					firewall-cmd --permanent --remove-port="$port"/"$protocol"
+#					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
+#					firewall-cmd --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$ip"
+#					firewall-cmd --permanent --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$ip"
+#				else
+#					systemctl disable --now openvpn-iptables.service
+#					rm -f /etc/systemd/system/openvpn-iptables.service
+#				fi
+#				if sestatus 2>/dev/null | grep "Current mode" | grep -q "enforcing" && [[ "$port" != 1194 ]]; then
+#					semanage port -d -t openvpn_port_t -p "$protocol" "$port"
+#				fi
+#				systemctl disable --now openvpn-server@server.service
+#				rm -rf /etc/openvpn/server
+#				rm -f /etc/systemd/system/openvpn-server@server.service.d/disable-limitnproc.conf
+#				rm -f /etc/sysctl.d/30-openvpn-forward.conf
+#				if [[ "$os" = "debian" ]]; then
+#					apt-get remove --purge -y openvpn
+#				else
+#					yum remove openvpn -y
+#				fi
+#				echo
+#				echo "OpenVPN removed!"
+#			else
+#				echo
+#				echo "Removal aborted!"
+#			fi
+#			exit
+#			;;
+#			4) exit;;
+#		esac
+#	done
+#else
 	clear
 	echo "Welcome to this OpenVPN "road warrior" installer!"
 	echo
 	echo "I need to ask you a few questions before starting setup."
 	echo "You can use the default options and just press enter if you are ok with them."
 	# If system has a single IPv4, it is selected automatically. Else, ask the user
-	if [[ $(ip addr | grep inet | grep -v inet6 | grep -vEc '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}') -eq 1 ]]; then
-		ip=$(ip addr | grep inet | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
-	else
-		number_of_ips=$(ip addr | grep inet | grep -v inet6 | grep -vEc '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
-		echo
-		echo "What IPv4 address should the OpenVPN server bind to?"
-		ip addr | grep inet | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | nl -s ') '
-		read -p "IPv4 address [1]: " ip_number
-		until [[ -z "$ip_number" || "$ip_number" =~ ^[0-9]+$ && "$ip_number" -le "$number_of_ips" ]]; do
-			echo "$ip_number: invalid selection."
-			read -p "IPv4 address [1]: " ip_number
-		done
-		[[ -z "$ip_number" ]] && ip_number="1"
-		ip=$(ip addr | grep inet | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sed -n "$ip_number"p)
-	fi
+#	if [[ $(ip addr | grep inet | grep -v inet6 | grep -vEc '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}') -eq 1 ]]; then
+#		ip=$(ip addr | grep inet | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+#	else
+#		number_of_ips=$(ip addr | grep inet | grep -v inet6 | grep -vEc '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+#		echo
+#		echo "What IPv4 address should the OpenVPN server bind to?"
+#		ip addr | grep inet | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | nl -s ') '
+#		read -p "IPv4 address [1]: " ip_number
+#		until [[ -z "$ip_number" || "$ip_number" =~ ^[0-9]+$ && "$ip_number" -le "$number_of_ips" ]]; do
+#			echo "$ip_number: invalid selection."
+#			read -p "IPv4 address [1]: " ip_number
+#		done
+#		[[ -z "$ip_number" ]] && ip_number="1"
+#		ip=$(ip addr | grep inet | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sed -n "$ip_number"p)
+#	fi
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$ip" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo

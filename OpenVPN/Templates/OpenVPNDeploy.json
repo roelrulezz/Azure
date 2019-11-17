@@ -51,17 +51,17 @@
         "description": "OpenVPN Virtual Machine name"
       }
     },
-    "OpenVPN-VMUbuntuOSVersion": {
-      "type": "string",
-      "defaultValue": "18.04-LTS",
-      "allowedValues": [
-        "16.04.0-LTS",
-        "18.04-LTS"
-      ],
-      "metadata": {
-        "description": "The Ubuntu version for the OpenVPN Virtual Machine. This will pick a fully patched image of this given Ubuntu version. Allowed values: 16.04.0-LTS, 18.04-LTS."
-      }
-    },
+    //"OpenVPN-VMUbuntuOSVersion": {
+    //  "type": "string",
+    //  "defaultValue": "18.04-LTS",
+    //  "allowedValues": [
+    //    "16.04.0-LTS",
+    //    "18.04-LTS"
+    //  ],
+    //  "metadata": {
+    //    "description": "The Ubuntu version for the OpenVPN Virtual Machine. This will pick a fully patched image of this given Ubuntu version. Allowed values: 16.04.0-LTS, 18.04-LTS."
+    //  }
+    //},
     "OpenVPN-VMAdminUsername": {
       "type": "string",
       "minLength": 1,
@@ -99,6 +99,7 @@
     "OpenVPN-SAName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]",
     "OpenVPN-VMImagePublisher": "Canonical",
     "OpenVPN-VMImageOffer": "UbuntuServer",
+    "OpenVPN-VMUbuntuOSVersion": "18.04-LTS",
     "OpenVPN-VMOSDiskName": "[concat(parameters('OpenVPN-VMName'), 'OSDisk')]",
     "OpenVPN-VMVmSize": "Standard_B1s",
     "OpenVPN-VMSAContainerName": "vhds",
@@ -201,21 +202,21 @@
       },
       "properties": {
         "securityRules": [
-          //{
-          //  "name": "OpenVPN_WebServer",
-          //  "properties": {
-          //    "priority": 1200,
-          //    "sourceAddressPrefix": "*",
-          //    "protocol": "Tcp",
-          //    "destinationPortRange": "943",
-          //    "access": "Allow",
-          //    "direction": "Inbound",
-          //    "sourcePortRange": "*",
-          //    "destinationAddressPrefix": "*"
-          //  }
-          //},
           {
-            "name": "OpenVPN443",
+            "name": "OpenVPN_WebServer",
+            "properties": {
+              "priority": 1200,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "943",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "OpenVPN_443",
             "properties": {
               "priority": 1100,
               "sourceAddressPrefix": "*",
@@ -228,7 +229,7 @@
             }
           },
           {
-            "name": "OpenVPN1194",
+            "name": "OpenVPN_1194",
             "properties": {
               "priority": 1300,
               "sourceAddressPrefix": "*",
@@ -296,7 +297,7 @@
           "imageReference": {
             "publisher": "[variables('OpenVPN-VMImagePublisher')]",
             "offer": "[variables('OpenVPN-VMImageOffer')]",
-            "sku": "[parameters('OpenVPN-VMUbuntuOSVersion')]",
+            "sku": "[variables('OpenVPN-VMUbuntuOSVersion')]",
             "version": "latest"
           },
           "osDisk": {
@@ -322,7 +323,7 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
-      "name": "[concat(parameters('OpenVPN-VMName'),'/newuserscript')]",
+      "name": "[concat(parameters('OpenVPN-VMName'),'/InstallOpenVPN')]",
       "apiVersion": "2019-03-01",
       "location": "[resourceGroup().location]",
       "dependsOn": [
@@ -339,18 +340,21 @@
         "settings": {
           "skipDos2Unix": false,
           "fileUris": [
-            //"https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/openvpn-install.sh"
-            "https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/hello-world.sh"
+            //"https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/hello-world.sh"
+            "https://raw.githubusercontent.com/roelrulezz/Azure/master/OpenVPN/Scripts/openvpn-install.sh"
           ]
         },
         "protectedSettings": {
-          //"storageAccountName": "[variables('OpenVPN-SAName')]",
-          //"storageAccountKey": ,
-          "commandToExecute": "[concat('bash hello-world.sh')]"
-          //"commandToExecute": "[concat('bash openvpn-install.sh ', parameters('openvpnPassword'))]"
+          //"commandToExecute": "[concat('bash hello-world.sh')]"
+          "commandToExecute": "[concat('bash openvpn-install.sh', concat(' -ip', variables('OpenVPN-NICPrivateIPAddress')))]"
         }
       }
     }
   ],
-  "outputs": {}
+  "outputs": {
+    "clientCertificate": {
+      "type": "object",
+      "value": "[reference(concat(parameters('OpenVPN-VMName'),'/InstallOpenVPN'), '2019-03-01')]"
+    }
+  }
 }
