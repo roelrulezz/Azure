@@ -1,0 +1,5 @@
+ssh -L 127.0.0.1:8080:localhost:8080 roelandvandenbosch@rvdb-jenkins.westeurope.cloudapp.azure.com
+
+ssh-keygen -t rsa -b 2048 -C "roeland@familievandenbosch.eu" -f id_rsa
+
+ssh-keygen -t rsa -b 2048 -C %computername% -f host_rsa
